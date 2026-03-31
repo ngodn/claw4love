@@ -16,23 +16,27 @@ claw4love targets: under 10MB binary, under 50ms startup, under 30MB memory, wit
 
 ## Status
 
-Phase 0 complete. Workspace scaffolded with 13 crates.
+Phases 0 through 3 complete. 92 tests passing across the workspace.
 
 | Crate | Status | Purpose |
 |-------|--------|---------|
 | c4l-types | Done | Messages, permissions, tools, commands, sessions |
 | c4l-config | Done | Layered config loading (TOML + env vars + defaults) |
 | c4l-cli | Done | Binary entry point with clap |
-| c4l-api | Stub | Anthropic API client with streaming |
-| c4l-engine | Stub | Query engine (LLM loop, tool calls) |
-| c4l-tools | Stub | Tool trait and implementations |
+| c4l-api | Done | Anthropic Messages API client with SSE streaming and retry |
+| c4l-engine | Done | Query engine with tool-call loop and event streaming |
+| c4l-tools | Done | Tool trait, registry, and 6 essential tools |
+| c4l-state | Done | SQLite session store, cost tracking, shared app state |
 | c4l-commands | Stub | Slash commands |
-| c4l-state | Stub | SQLite session/cost persistence |
 | c4l-tui | Stub | Terminal UI with ratatui |
 | c4l-mcp | Stub | Model Context Protocol client |
 | c4l-plugins | Stub | Plugin, skill, and hook system |
 | c4l-bridge | Stub | IDE integration (VS Code, JetBrains) |
 | c4l-utils | Stub | Shared utilities |
+
+### Implemented tools
+
+Bash, Read (FileRead), Edit (FileEdit), Write (FileWrite), Glob, Grep
 
 ## Building
 
@@ -63,9 +67,9 @@ Config is loaded by c4l-config from three layers: user global, project local, an
 ## Phases
 
 0. Foundation (workspace, types, config, CLI shell) -- done
-1. Core engine (API client, streaming, tool-call loop)
-2. Essential tools (Bash, FileRead, FileEdit, FileWrite, Glob, Grep)
-3. Session and state (SQLite persistence, cost tracking)
+1. Core engine (API client, streaming, tool-call loop) -- done
+2. Essential tools (Bash, FileRead, FileEdit, FileWrite, Glob, Grep) -- done
+3. Session and state (SQLite persistence, cost tracking) -- done
 4. Terminal UI (ratatui REPL)
 5. Commands (slash commands)
 6. Extensions (plugins, skills, hooks, MCP)
@@ -78,9 +82,9 @@ Detailed plans for each phase are in the `porting/` directory.
 
 The `research/` directory contains component-by-component analysis of:
 
-- The original Claude Code CLI TypeScript source
+- The original Claude Code CLI TypeScript source (512K LOC)
 - Existing Python and Rust porting attempts
-- The RTK token optimization proxy
+- The RTK token optimization proxy (19K LOC Rust)
 - The Everything Claude Code and Superpowers plugin ecosystems
 
 All type definitions and architectural decisions are grounded in these findings.
