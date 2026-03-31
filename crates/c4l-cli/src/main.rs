@@ -265,15 +265,33 @@ fn cmd_doctor(config: &c4l_config::C4lConfig) {
 async fn cmd_login(email: Option<&str>) -> Result<()> {
     use c4l_api::oauth;
 
-    // Check if already logged in
+    // Check if already logged in (from claw4love or Claude Code CLI — same credentials file)
     if let Ok(Some(token)) = oauth::load_credentials() {
         if !token.is_expired() {
             let sub = token.subscription_type.as_deref().unwrap_or("unknown");
-            println!("Already logged in (subscription: {sub}).");
-            println!("Run 'claw4love logout' first to re-authenticate.");
+            println!("Already authenticated (subscription: {sub}).");
+            if token.has_inference_scope() {
+                println!("Using existing Claude Code credentials from ~/.claude/.credentials.json");
+                println!("You're ready to go. Run 'claw4love' to start.");
+            } else {
+                println!("Run 'claw4love logout' first to re-authenticate.");
+            }
             return Ok(());
         }
-        println!("Token expired, re-authenticating...");
+        println!("Token expired, refreshing...");
+        // Try refresh before full re-auth
+        let http = reqwest::Client::new();
+        match oauth::refresh_token(&http, &token.refresh_token).await {
+            Ok(new_token) => {
+                oauth::save_credentials(&new_token)?;
+                let sub = new_token.subscription_type.as_deref().unwrap_or("active");
+                println!("Token refreshed (subscription: {sub}). Ready to go.");
+                return Ok(());
+            }
+            Err(e) => {
+                println!("Refresh failed ({e}), re-authenticating...");
+            }
+        }
     }
 
     // Generate PKCE challenge

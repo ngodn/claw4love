@@ -4,7 +4,7 @@
 
 use crate::traits::{Tool, ToolResult, ToolUseContext};
 use async_trait::async_trait;
-use c4l_types::{PermissionResult, ToolInputSchema, ValidationResult};
+use c4l_types::{PermissionResult, ToolInputSchema};
 use ignore::WalkBuilder;
 use serde_json::Value;
 use std::collections::HashMap;

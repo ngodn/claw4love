@@ -73,7 +73,7 @@ pub trait Tool: Send + Sync {
     async fn call(&self, input: Value, context: &ToolUseContext) -> anyhow::Result<ToolResult>;
 
     /// Check if this tool invocation is allowed.
-    fn check_permissions(&self, input: &Value, context: &ToolUseContext) -> PermissionResult {
+    fn check_permissions(&self, input: &Value, _context: &ToolUseContext) -> PermissionResult {
         let _ = input;
         PermissionResult::Prompt {
             message: format!("Allow {}?", self.name()),

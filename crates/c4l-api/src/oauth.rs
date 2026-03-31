@@ -14,7 +14,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// OAuth configuration constants.
 /// Verified from: leak-claude-code/src/constants/oauth.ts

@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// JSON-RPC message for MCP protocol.
 #[derive(Debug, Clone, Serialize, Deserialize)]

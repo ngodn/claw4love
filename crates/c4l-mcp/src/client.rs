@@ -1,6 +1,6 @@
 //! MCP client: manages connections to MCP servers and dispatches tool calls.
 
-use crate::config::{McpConfig, McpServerConfig};
+use crate::config::McpServerConfig;
 use crate::transport::StdioTransport;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

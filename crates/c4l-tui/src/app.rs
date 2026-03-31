@@ -28,6 +28,7 @@ pub enum AppMode {
 
 /// The TUI application.
 pub struct App {
+    #[allow(dead_code)]
     state: SharedAppState,
     input: InputState,
     messages: Vec<DisplayMessage>,

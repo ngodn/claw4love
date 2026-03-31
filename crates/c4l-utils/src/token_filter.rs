@@ -14,7 +14,6 @@
 //! 8. on_empty — message if result empty
 
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use crate::ansi;
 
 /// A compiled filter ready for execution.

@@ -4,8 +4,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use tracing::warn;
-
 /// Plugin manifest loaded from plugin.json or package.json.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginManifest {
