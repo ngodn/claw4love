@@ -1,8 +1,19 @@
 [package]
 name = "c4l-plugins"
-description = "claw4love — c4l-plugins (stub)"
+description = "Plugin, skill, hook, and memory system for claw4love"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+walkdir = { workspace = true }
+dirs = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true }
