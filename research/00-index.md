@@ -38,6 +38,13 @@ Hard-gate methodology: TDD, systematic debugging, verification-before-completion
 Two-stage review gates, subagent-driven development.
 Cross-platform: Claude Code, Cursor, Codex, OpenCode, Gemini CLI.
 
+## Authentication
+
+### [06 - OAuth Auth Flow](06-oauth-auth-flow.md)
+Complete OAuth 2.0 PKCE flow for Claude subscription login (Pro/Max/Team/Enterprise).
+Client ID, endpoints, scopes, token storage, refresh logic, auth priority order.
+Verified from leak-claude-code/src/services/oauth/ and src/utils/auth.ts.
+
 ## Key Observations for Rust Rewrite
 
 ### From rtk (existing Rust proxy):
