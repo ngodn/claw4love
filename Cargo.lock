@@ -180,14 +180,23 @@ name = "c4l-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "c4l-api",
+ "c4l-commands",
  "c4l-config",
+ "c4l-engine",
+ "c4l-plugins",
+ "c4l-state",
+ "c4l-tools",
+ "c4l-tui",
  "c4l-types",
+ "chrono",
  "clap",
  "serde_json",
  "tokio",
  "toml",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
