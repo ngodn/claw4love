@@ -1,8 +1,24 @@
 [package]
 name = "c4l-state"
-description = "claw4love — c4l-state (stub)"
+description = "Session management, SQLite persistence, cost tracking for claw4love"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
+c4l-types = { workspace = true }
+c4l-api = { workspace = true }
+rusqlite = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+dirs = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = "3"
