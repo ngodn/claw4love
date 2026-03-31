@@ -4,14 +4,13 @@
 
 use anyhow::Result;
 use c4l_api::{AnthropicClient, ApiConfig};
+use c4l_api::oauth::{self, AuthMethod};
 use c4l_commands::CommandRegistry;
 use c4l_engine::events::QueryEvent;
 use c4l_engine::QueryEngine;
 use c4l_engine::engine::EngineConfig;
-use c4l_plugins::{load_memory_files, discover_skills, load_hooks};
-use c4l_state::{AppState, SharedAppState, StateStore};
-use c4l_tools::ToolRegistry;
-use std::path::PathBuf;
+use c4l_plugins::load_memory_files;
+use c4l_state::{AppState, StateStore};
 use tokio::sync::mpsc;
 use tracing::info;
 
@@ -32,18 +31,40 @@ fn build_system_prompt(project_root: &std::path::Path) -> String {
     parts.join("\n\n")
 }
 
-/// Resolve the API key from config or environment.
-fn resolve_api_key(config: &c4l_config::C4lConfig) -> Result<String> {
-    config
-        .auth
-        .api_key
-        .clone()
-        .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "No API key found. Set ANTHROPIC_API_KEY or add api_key to config."
+/// Resolve authentication and build an ApiConfig.
+///
+/// Supports:
+/// - API key (ANTHROPIC_API_KEY env var or config)
+/// - OAuth subscription (claude login / stored credentials)
+fn resolve_api_config(config: &c4l_config::C4lConfig, model: &str) -> Result<ApiConfig> {
+    match oauth::resolve_auth(config) {
+        AuthMethod::ApiKey(key) => {
+            info!("authenticating with API key");
+            Ok(ApiConfig::new(key, model.to_string()))
+        }
+        AuthMethod::OAuth(token) => {
+            if token.is_expired() {
+                info!("OAuth token expired, attempting refresh");
+                let http = reqwest::Client::new();
+                // Refresh synchronously (we're in an async context but this is startup)
+                let rt = tokio::runtime::Handle::current();
+                let new_token = rt.block_on(oauth::refresh_token(&http, &token.refresh_token))?;
+                oauth::save_credentials(&new_token)?;
+                info!(subscription = ?new_token.subscription_type, "authenticated with OAuth (refreshed)");
+                Ok(ApiConfig::with_oauth(new_token.access_token, model.to_string()))
+            } else {
+                info!(subscription = ?token.subscription_type, "authenticated with OAuth");
+                Ok(ApiConfig::with_oauth(token.access_token, model.to_string()))
+            }
+        }
+        AuthMethod::None => {
+            anyhow::bail!(
+                "No authentication found.\n\
+                 Run 'claw4love login' to authenticate with your Claude subscription,\n\
+                 or set ANTHROPIC_API_KEY for API key access."
             )
-        })
+        }
+    }
 }
 
 /// Run a single prompt without the TUI (non-interactive / pipe mode).
@@ -52,10 +73,9 @@ pub async fn run_oneshot(
     model: &str,
     prompt: &str,
 ) -> Result<()> {
-    let api_key = resolve_api_key(config)?;
+    let api_config = resolve_api_config(config, model)?;
     let cwd = std::env::current_dir()?;
 
-    let api_config = ApiConfig::new(api_key, model.to_string());
     let client = AnthropicClient::new(api_config);
 
     let system_prompt = build_system_prompt(&cwd);
@@ -102,7 +122,7 @@ pub async fn run_interactive(
     config: &c4l_config::C4lConfig,
     model: &str,
 ) -> Result<()> {
-    let api_key = resolve_api_key(config)?;
+    let api_config = resolve_api_config(config, model)?;
     let cwd = std::env::current_dir()?;
 
     // Open state store
@@ -112,7 +132,6 @@ pub async fn run_interactive(
     info!(session_id = %session.id, model, "starting interactive session");
 
     // Build API client
-    let api_config = ApiConfig::new(api_key, model.to_string());
     let client = AnthropicClient::new(api_config);
 
     // Build system prompt

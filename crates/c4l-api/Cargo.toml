@@ -13,6 +13,8 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+dirs = { workspace = true }
+c4l-config = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

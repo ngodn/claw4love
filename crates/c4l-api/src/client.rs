@@ -35,13 +35,26 @@ impl AnthropicClient {
     }
 
     /// Build the required HTTP headers for the Anthropic API.
+    ///
+    /// API key auth: sends x-api-key header.
+    /// OAuth auth: sends Authorization: Bearer header + oauth beta.
     fn headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        headers.insert(
-            "x-api-key",
-            HeaderValue::from_str(&self.config.api_key).unwrap_or(HeaderValue::from_static("")),
-        );
+
+        match &self.config.auth {
+            crate::types::ApiAuth::ApiKey(key) => {
+                if let Ok(val) = HeaderValue::from_str(key) {
+                    headers.insert("x-api-key", val);
+                }
+            }
+            crate::types::ApiAuth::OAuth(token) => {
+                if let Ok(val) = HeaderValue::from_str(&format!("Bearer {token}")) {
+                    headers.insert("authorization", val);
+                }
+            }
+        }
+
         headers.insert(
             "anthropic-version",
             HeaderValue::from_str(&self.config.api_version)
@@ -221,6 +234,7 @@ mod tests {
             headers.get("x-api-key").unwrap().to_str().unwrap(),
             "sk-test-key"
         );
+        assert!(headers.get("authorization").is_none());
         assert_eq!(
             headers.get("anthropic-version").unwrap().to_str().unwrap(),
             "2023-06-01"
@@ -243,6 +257,21 @@ mod tests {
             headers.get("anthropic-beta").unwrap().to_str().unwrap(),
             "extended-thinking-2025-04-14"
         );
+    }
+
+    #[test]
+    fn oauth_headers() {
+        let config = ApiConfig::with_oauth("oauth-token-123".into(), "claude-sonnet-4-6".into());
+        let client = AnthropicClient::new(config);
+        let headers = client.headers();
+
+        assert_eq!(
+            headers.get("authorization").unwrap().to_str().unwrap(),
+            "Bearer oauth-token-123"
+        );
+        assert!(headers.get("x-api-key").is_none());
+        // OAuth config auto-includes the oauth beta
+        assert!(headers.get("anthropic-beta").unwrap().to_str().unwrap().contains("oauth-2025-04-20"));
     }
 
     #[test]

@@ -48,6 +48,14 @@ enum Commands {
     },
     /// Run environment diagnostics
     Doctor,
+    /// Log in with your Claude subscription (Pro/Max/Team/Enterprise)
+    Login {
+        /// Pre-fill email address
+        #[arg(short, long)]
+        email: Option<String>,
+    },
+    /// Log out and clear stored credentials
+    Logout,
 }
 
 #[tokio::main]
@@ -84,6 +92,8 @@ async fn main() -> Result<()> {
         Some(Commands::Resume { session_id }) => cmd_resume(&session_id)?,
         Some(Commands::Cost { all }) => cmd_cost(all)?,
         Some(Commands::Doctor) => cmd_doctor(&config),
+        Some(Commands::Login { email }) => cmd_login(email.as_deref()).await?,
+        Some(Commands::Logout) => cmd_logout()?,
         None => {
             // Non-interactive mode with --prompt
             if let Some(prompt) = cli.prompt {
@@ -193,14 +203,18 @@ fn cmd_cost(all: bool) -> Result<()> {
 fn cmd_doctor(config: &c4l_config::C4lConfig) {
     println!("claw4love doctor\n");
 
-    // Check API key
-    print!("  API key: ");
-    if config.auth.api_key.is_some() {
-        println!("configured");
-    } else if std::env::var("ANTHROPIC_API_KEY").is_ok() {
-        println!("set via ANTHROPIC_API_KEY");
-    } else {
-        println!("MISSING - set ANTHROPIC_API_KEY or add to config");
+    // Check auth
+    print!("  Auth: ");
+    match c4l_api::oauth::resolve_auth(config) {
+        c4l_api::AuthMethod::ApiKey(_) => println!("API key"),
+        c4l_api::AuthMethod::OAuth(token) => {
+            let sub = token.subscription_type.as_deref().unwrap_or("unknown");
+            let expired = if token.is_expired() { " (EXPIRED)" } else { "" };
+            println!("OAuth subscription ({sub}){expired}");
+        }
+        c4l_api::AuthMethod::None => {
+            println!("NONE - run 'claw4love login' or set ANTHROPIC_API_KEY");
+        }
     }
 
     // Check model
@@ -246,4 +260,100 @@ fn cmd_doctor(config: &c4l_config::C4lConfig) {
     println!("  Skills: {}", skills.len());
 
     println!("\nDone.");
+}
+
+async fn cmd_login(email: Option<&str>) -> Result<()> {
+    use c4l_api::oauth;
+
+    // Check if already logged in
+    if let Ok(Some(token)) = oauth::load_credentials() {
+        if !token.is_expired() {
+            let sub = token.subscription_type.as_deref().unwrap_or("unknown");
+            println!("Already logged in (subscription: {sub}).");
+            println!("Run 'claw4love logout' first to re-authenticate.");
+            return Ok(());
+        }
+        println!("Token expired, re-authenticating...");
+    }
+
+    // Generate PKCE challenge
+    let pkce = oauth::PkceChallenge::generate();
+
+    // Start local callback server
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let port = listener.local_addr()?.port();
+    let redirect_uri = format!("http://localhost:{port}/callback");
+
+    // Build authorization URL
+    let auth_url = oauth::build_authorize_url(&pkce, &redirect_uri, email);
+
+    println!("Opening browser for authentication...\n");
+    println!("If the browser doesn't open, visit this URL:\n{auth_url}\n");
+
+    // Try to open browser
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open").arg(&auth_url).spawn().ok();
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open").arg(&auth_url).spawn().ok();
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("cmd").args(["/C", "start", &auth_url]).spawn().ok();
+
+    println!("Waiting for authorization...");
+
+    // Wait for the callback
+    let (stream, _addr) = listener.accept().await?;
+    let mut buf = vec![0u8; 4096];
+    stream.readable().await?;
+    let n = stream.try_read(&mut buf).unwrap_or(0);
+    let request = String::from_utf8_lossy(&buf[..n]);
+
+    // Parse the authorization code from the callback URL
+    let code = request
+        .lines()
+        .next()
+        .and_then(|line| line.split(' ').nth(1))
+        .and_then(|path| {
+            path.split('?')
+                .nth(1)
+                .and_then(|query| {
+                    query.split('&').find_map(|param| {
+                        param.strip_prefix("code=").map(String::from)
+                    })
+                })
+        })
+        .ok_or_else(|| anyhow::anyhow!("no authorization code in callback"))?;
+
+    // Send success response to browser
+    let response = format!(
+        "HTTP/1.1 302 Found\r\nLocation: {}\r\nConnection: close\r\n\r\n",
+        oauth::SUCCESS_URL,
+    );
+    stream.writable().await?;
+    stream.try_write(response.as_bytes()).ok();
+
+    // Exchange code for tokens
+    let http = reqwest::Client::new();
+    let token = oauth::exchange_code(
+        &http,
+        &code,
+        &redirect_uri,
+        &pkce.verifier,
+        &pkce.state,
+    )
+    .await?;
+
+    // Save credentials
+    oauth::save_credentials(&token)?;
+
+    let sub = token.subscription_type.as_deref().unwrap_or("active");
+    println!("\nLogged in successfully (subscription: {sub}).");
+    println!("You can now use claw4love without an API key.");
+
+    Ok(())
+}
+
+fn cmd_logout() -> Result<()> {
+    c4l_api::oauth::clear_credentials()?;
+    println!("Logged out. Credentials cleared.");
+    Ok(())
 }

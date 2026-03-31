@@ -5,10 +5,20 @@
 
 use serde::{Deserialize, Serialize};
 
+/// How the client authenticates with the API.
+#[derive(Debug, Clone)]
+pub enum ApiAuth {
+    /// API key: sent as x-api-key header.
+    ApiKey(String),
+    /// OAuth bearer token: sent as Authorization header.
+    /// Used by Claude Pro/Max/Team/Enterprise subscriptions.
+    OAuth(String),
+}
+
 /// Configuration for the API client.
 #[derive(Debug, Clone)]
 pub struct ApiConfig {
-    pub api_key: String,
+    pub auth: ApiAuth,
     pub base_url: String,
     pub model: String,
     pub max_tokens: u32,
@@ -17,14 +27,27 @@ pub struct ApiConfig {
 }
 
 impl ApiConfig {
+    /// Create config with API key auth.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
-            api_key,
+            auth: ApiAuth::ApiKey(api_key),
             base_url: "https://api.anthropic.com".into(),
             model,
             max_tokens: 16384,
             api_version: "2023-06-01".into(),
             betas: vec![],
+        }
+    }
+
+    /// Create config with OAuth bearer token auth (subscription login).
+    pub fn with_oauth(access_token: String, model: String) -> Self {
+        Self {
+            auth: ApiAuth::OAuth(access_token),
+            base_url: "https://api.anthropic.com".into(),
+            model,
+            max_tokens: 16384,
+            api_version: "2023-06-01".into(),
+            betas: vec![crate::oauth::OAUTH_BETA.to_string()],
         }
     }
 

@@ -156,6 +156,8 @@ name = "c4l-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "c4l-config",
+ "dirs",
  "reqwest",
  "serde",
  "serde_json",
@@ -191,6 +193,7 @@ dependencies = [
  "c4l-types",
  "chrono",
  "clap",
+ "reqwest",
  "serde_json",
  "tokio",
  "toml",
