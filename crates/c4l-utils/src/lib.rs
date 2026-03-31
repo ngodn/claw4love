@@ -1,1 +1,7 @@
-//! c4l-utils — stub for Phase 0. Implementation coming.
+//! Shared utilities for claw4love.
+//!
+//! Token filter pipeline (ported from RTK), git worktrees, ANSI stripping.
+
+pub mod ansi;
+pub mod token_filter;
+pub mod worktree;
