@@ -1,8 +1,20 @@
 [package]
 name = "c4l-engine"
-description = "claw4love — c4l-engine (stub)"
+description = "Query engine for claw4love: LLM streaming, tool-call loop, conversation management"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
+c4l-types = { workspace = true }
+c4l-api = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
