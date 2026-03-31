@@ -1,0 +1,8 @@
+[package]
+name = "c4l-tools"
+description = "claw4love — c4l-tools (stub)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

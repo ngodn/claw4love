@@ -1,0 +1,78 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+exclude = ["playground"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["claw4love"]
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+toml = "0.8"
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Time & IDs
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Persistence
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Terminal UI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# HTTP
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Filesystem
+dirs = "6"
+regex = "1"
+globset = "0.4"
+ignore = "0.4"
+walkdir = "2"
+
+# Git
+git2 = "0.20"
+
+# Text processing
+similar = "2"
+
+# Internal crates
+c4l-types = { path = "crates/c4l-types" }
+c4l-config = { path = "crates/c4l-config" }
+c4l-utils = { path = "crates/c4l-utils" }
+c4l-api = { path = "crates/c4l-api" }
+c4l-engine = { path = "crates/c4l-engine" }
+c4l-tools = { path = "crates/c4l-tools" }
+c4l-commands = { path = "crates/c4l-commands" }
+c4l-state = { path = "crates/c4l-state" }
+c4l-tui = { path = "crates/c4l-tui" }
+c4l-mcp = { path = "crates/c4l-mcp" }
+c4l-plugins = { path = "crates/c4l-plugins" }
+c4l-bridge = { path = "crates/c4l-bridge" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
