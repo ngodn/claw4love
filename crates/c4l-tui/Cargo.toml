@@ -1,8 +1,18 @@
 [package]
 name = "c4l-tui"
-description = "claw4love — c4l-tui (stub)"
+description = "Terminal UI for claw4love: ratatui REPL with streaming, tool display, permissions"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
+c4l-types = { workspace = true }
+c4l-api = { workspace = true }
+c4l-engine = { workspace = true }
+c4l-state = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
