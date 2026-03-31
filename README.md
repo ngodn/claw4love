@@ -16,7 +16,7 @@ claw4love targets: under 10MB binary, under 50ms startup, under 30MB memory, wit
 
 ## Status
 
-Phases 0 through 3 complete. 92 tests passing across the workspace.
+All 8 phases scaffolded. 13 crates, 157 tests passing.
 
 | Crate | Status | Purpose |
 |-------|--------|---------|
@@ -27,16 +27,20 @@ Phases 0 through 3 complete. 92 tests passing across the workspace.
 | c4l-engine | Done | Query engine with tool-call loop and event streaming |
 | c4l-tools | Done | Tool trait, registry, and 6 essential tools |
 | c4l-state | Done | SQLite session store, cost tracking, shared app state |
-| c4l-commands | Stub | Slash commands |
-| c4l-tui | Stub | Terminal UI with ratatui |
-| c4l-mcp | Stub | Model Context Protocol client |
-| c4l-plugins | Stub | Plugin, skill, and hook system |
-| c4l-bridge | Stub | IDE integration (VS Code, JetBrains) |
-| c4l-utils | Stub | Shared utilities |
+| c4l-commands | Done | Slash command trait, registry, 11 built-in commands |
+| c4l-tui | Done | Ratatui REPL with streaming, input, permissions |
+| c4l-mcp | Done | MCP client with STDIO transport and JSON-RPC |
+| c4l-plugins | Done | Skill parsing, hook execution, memory loading, plugin discovery |
+| c4l-bridge | Done | IDE bridge protocol types |
+| c4l-utils | Done | Token filter pipeline, ANSI stripping, git worktrees |
 
 ### Implemented tools
 
 Bash, Read (FileRead), Edit (FileEdit), Write (FileWrite), Glob, Grep
+
+### Slash commands
+
+/help, /clear, /exit, /cost, /status, /config, /commit, /review, /plan, /diff, /compact
 
 ## Building
 
@@ -70,11 +74,11 @@ Config is loaded by c4l-config from three layers: user global, project local, an
 1. Core engine (API client, streaming, tool-call loop) -- done
 2. Essential tools (Bash, FileRead, FileEdit, FileWrite, Glob, Grep) -- done
 3. Session and state (SQLite persistence, cost tracking) -- done
-4. Terminal UI (ratatui REPL)
-5. Commands (slash commands)
-6. Extensions (plugins, skills, hooks, MCP)
-7. Advanced (agents, worktrees, IDE bridge)
-8. Polish (token optimization via filter pipeline, packaging)
+4. Terminal UI (ratatui REPL) -- done
+5. Commands (slash commands) -- done
+6. Extensions (plugins, skills, hooks, MCP) -- done
+7. Advanced (agents, worktrees, IDE bridge) -- done
+8. Polish (token optimization via filter pipeline) -- done
 
 Detailed plans for each phase are in the `porting/` directory.
 
