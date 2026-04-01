@@ -67,17 +67,23 @@ impl AnthropicClient {
             }
         }
 
-        // Required headers for OAuth/subscription requests
+        // Required headers for OAuth/subscription requests.
+        // Verified by intercepting actual Claude Code CLI requests.
         if matches!(self.config.auth, crate::types::ApiAuth::OAuth(_)) {
             headers.insert(
                 "user-agent",
-                HeaderValue::from_static("claude-cli/2.1.87 (external, claude-vscode)"),
+                HeaderValue::from_static("claude-cli/2.1.87 (external, claw4love)"),
             );
             headers.insert("x-app", HeaderValue::from_static("cli"));
             headers.insert(
                 "anthropic-dangerous-direct-browser-access",
                 HeaderValue::from_static("true"),
             );
+            headers.insert("x-stainless-lang", HeaderValue::from_static("js"));
+            headers.insert("x-stainless-os", HeaderValue::from_static("Linux"));
+            headers.insert("x-stainless-package-version", HeaderValue::from_static("0.74.0"));
+            headers.insert("x-stainless-runtime", HeaderValue::from_static("node"));
+            headers.insert("x-stainless-runtime-version", HeaderValue::from_static("v24.3.0"));
         }
 
         headers
