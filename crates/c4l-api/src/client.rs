@@ -66,6 +66,20 @@ impl AnthropicClient {
                 headers.insert("anthropic-beta", val);
             }
         }
+
+        // Required headers for OAuth/subscription requests
+        if matches!(self.config.auth, crate::types::ApiAuth::OAuth(_)) {
+            headers.insert(
+                "user-agent",
+                HeaderValue::from_static("claude-cli/2.1.87 (external, claude-vscode)"),
+            );
+            headers.insert("x-app", HeaderValue::from_static("cli"));
+            headers.insert(
+                "anthropic-dangerous-direct-browser-access",
+                HeaderValue::from_static("true"),
+            );
+        }
+
         headers
     }
 
@@ -189,6 +203,12 @@ impl AnthropicClient {
     ) -> Result<(), ApiError> {
         let body = self.build_request(messages, system, tools, true);
 
+        if tracing::enabled!(tracing::Level::DEBUG) {
+            if let Ok(json) = serde_json::to_string_pretty(&body) {
+                debug!(body = %json, "request body");
+            }
+        }
+
         for attempt in 0..=self.retry_policy.max_retries {
             debug!(attempt, "starting streaming request");
 
@@ -205,6 +225,7 @@ impl AnthropicClient {
                     let status = resp.status().as_u16();
                     if status != 200 {
                         let body_text = resp.text().await.unwrap_or_default();
+                        tracing::error!(status, body = %body_text, url = %self.config.messages_url(), "API error response");
                         let err = ApiError::from_status(status, &body_text);
 
                         if err.is_retryable() && attempt < self.retry_policy.max_retries {
