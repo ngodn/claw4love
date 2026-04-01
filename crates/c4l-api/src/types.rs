@@ -47,13 +47,21 @@ impl ApiConfig {
             model,
             max_tokens: 16384,
             api_version: "2023-06-01".into(),
-            betas: vec![crate::oauth::OAUTH_BETA.to_string()],
+            betas: vec![
+                "claude-code-20250219".to_string(),
+                crate::oauth::OAUTH_BETA.to_string(),
+                "interleaved-thinking-2025-05-14".to_string(),
+            ],
         }
     }
 
     /// Endpoint URL for the messages API.
+    /// OAuth uses ?beta=true query param.
     pub fn messages_url(&self) -> String {
-        format!("{}/v1/messages", self.base_url)
+        match &self.auth {
+            ApiAuth::OAuth(_) => format!("{}/v1/messages?beta=true", self.base_url),
+            ApiAuth::ApiKey(_) => format!("{}/v1/messages", self.base_url),
+        }
     }
 }
 
@@ -157,6 +165,19 @@ pub struct MessagesRequest {
     pub stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<ThinkingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+}
+
+/// Thinking mode configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThinkingConfig {
+    #[serde(rename = "type")]
+    pub thinking_type: String, // "disabled", "adaptive", "enabled"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub budget_tokens: Option<u32>,
 }
 
 // -- Response types --
@@ -321,11 +342,16 @@ mod tests {
             tools: None,
             stream: Some(true),
             metadata: None,
+            thinking: None,
+            temperature: None,
         };
 
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"stream\":true"));
         assert!(json.contains("\"model\":\"claude-sonnet-4-6\""));
+        // thinking and temperature should be absent when None
+        assert!(!json.contains("thinking"));
+        assert!(!json.contains("temperature"));
     }
 
     #[test]

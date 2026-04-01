@@ -88,7 +88,30 @@ impl AnthropicClient {
                 Some(tools.to_vec())
             },
             stream: if stream { Some(true) } else { None },
-            metadata: None,
+            metadata: match &self.config.auth {
+                crate::types::ApiAuth::OAuth(_) => {
+                    // OAuth requires metadata.user_id with device_id and session_id
+                    Some(serde_json::json!({
+                        "user_id": serde_json::json!({
+                            "device_id": "claw4love",
+                            "session_id": uuid::Uuid::new_v4().to_string(),
+                        }).to_string()
+                    }))
+                }
+                _ => None,
+            },
+            thinking: match &self.config.auth {
+                crate::types::ApiAuth::OAuth(_) => Some(ThinkingConfig {
+                    thinking_type: "disabled".into(),
+                    budget_tokens: None,
+                }),
+                _ => None,
+            },
+            temperature: match &self.config.auth {
+                // temperature:1 required when thinking is disabled
+                crate::types::ApiAuth::OAuth(_) => Some(1.0),
+                _ => None,
+            },
         }
     }
 
