@@ -8,8 +8,10 @@ pub mod error;
 pub mod client;
 pub mod sse;
 pub mod oauth;
+pub mod session_bootstrap;
 
 pub use client::AnthropicClient;
 pub use error::ApiError;
 pub use oauth::{AuthMethod, StoredOAuthToken};
+pub use session_bootstrap::{bootstrap_session, CapturedSession};
 pub use types::*;

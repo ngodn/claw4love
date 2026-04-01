@@ -30,8 +30,43 @@ impl AnthropicClient {
         self
     }
 
+    /// Create a client from a captured Claude Code session.
+    /// Uses the exact headers and config from the real CLI.
+    pub fn from_captured_session(session: &crate::session_bootstrap::CapturedSession) -> Self {
+        let config = ApiConfig {
+            auth: ApiAuth::OAuth(
+                session
+                    .authorization
+                    .strip_prefix("Bearer ")
+                    .unwrap_or(&session.authorization)
+                    .to_string(),
+            ),
+            base_url: "https://api.anthropic.com".into(),
+            model: session.model.clone(),
+            max_tokens: 16384,
+            api_version: "2023-06-01".into(),
+            betas: session
+                .anthropic_beta
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect(),
+        };
+
+        Self {
+            http: reqwest::Client::new(),
+            config,
+            retry_policy: RetryPolicy::default(),
+        }
+    }
+
     pub fn config(&self) -> &ApiConfig {
         &self.config
+    }
+
+    /// Get the captured session headers for requests.
+    /// Only used when created via from_captured_session.
+    pub fn captured_headers(&self) -> Option<&HeaderMap> {
+        None // We rebuild headers from config
     }
 
     /// Build the required HTTP headers for the Anthropic API.

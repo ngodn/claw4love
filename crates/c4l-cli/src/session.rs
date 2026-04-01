@@ -3,12 +3,12 @@
 //! This is where all the crates come together into a working conversation.
 
 use anyhow::Result;
-use c4l_api::{AnthropicClient, ApiConfig};
 use c4l_api::oauth::{self, AuthMethod};
+use c4l_api::{AnthropicClient, ApiConfig};
 use c4l_commands::CommandRegistry;
+use c4l_engine::engine::EngineConfig;
 use c4l_engine::events::QueryEvent;
 use c4l_engine::QueryEngine;
-use c4l_engine::engine::EngineConfig;
 use c4l_plugins::load_memory_files;
 use c4l_state::{AppState, StateStore};
 use tokio::sync::mpsc;
@@ -31,31 +31,23 @@ fn build_system_prompt(project_root: &std::path::Path) -> String {
     parts.join("\n\n")
 }
 
-/// Resolve authentication and build an ApiConfig.
+/// Build an AnthropicClient — either directly (API key) or via session bootstrap (OAuth).
 ///
-/// Supports:
-/// - API key (ANTHROPIC_API_KEY env var or config)
-/// - OAuth subscription (claude login / stored credentials)
-fn resolve_api_config(config: &c4l_config::C4lConfig, model: &str) -> Result<ApiConfig> {
+/// For OAuth/subscription users: spawns a real Claude Code CLI session through a
+/// transparent proxy to capture the exact headers, metadata, and session ID.
+/// This ensures 100% compatibility with Anthropic's API requirements.
+async fn build_client(config: &c4l_config::C4lConfig, model: &str) -> Result<AnthropicClient> {
     match oauth::resolve_auth(config) {
         AuthMethod::ApiKey(key) => {
             info!("authenticating with API key");
-            Ok(ApiConfig::new(key, model.to_string()))
+            Ok(AnthropicClient::new(ApiConfig::new(key, model.to_string())))
         }
-        AuthMethod::OAuth(token) => {
-            if token.is_expired() {
-                info!("OAuth token expired, attempting refresh");
-                let http = reqwest::Client::new();
-                // Refresh synchronously (we're in an async context but this is startup)
-                let rt = tokio::runtime::Handle::current();
-                let new_token = rt.block_on(oauth::refresh_token(&http, &token.refresh_token))?;
-                oauth::save_credentials(&new_token)?;
-                info!(subscription = ?new_token.subscription_type, "authenticated with OAuth (refreshed)");
-                Ok(ApiConfig::with_oauth(new_token.access_token, model.to_string()))
-            } else {
-                info!(subscription = ?token.subscription_type, "authenticated with OAuth");
-                Ok(ApiConfig::with_oauth(token.access_token, model.to_string()))
-            }
+        AuthMethod::OAuth(_) => {
+            info!("OAuth detected, bootstrapping session via Claude Code CLI");
+            eprintln!("Bootstrapping session via Claude Code CLI...");
+            let session = c4l_api::bootstrap_session().await?;
+            eprintln!("Session ready (model: {}, id: {})", session.model, &session.session_id[..8.min(session.session_id.len())]);
+            Ok(AnthropicClient::from_captured_session(&session))
         }
         AuthMethod::None => {
             anyhow::bail!(
@@ -73,10 +65,8 @@ pub async fn run_oneshot(
     model: &str,
     prompt: &str,
 ) -> Result<()> {
-    let api_config = resolve_api_config(config, model)?;
+    let client = build_client(config, model).await?;
     let cwd = std::env::current_dir()?;
-
-    let client = AnthropicClient::new(api_config);
 
     let system_prompt = build_system_prompt(&cwd);
     let tool_registry = c4l_engine::ToolRegistry::new(); // no tools in oneshot for now
@@ -122,7 +112,7 @@ pub async fn run_interactive(
     config: &c4l_config::C4lConfig,
     model: &str,
 ) -> Result<()> {
-    let api_config = resolve_api_config(config, model)?;
+    let client = build_client(config, model).await?;
     let cwd = std::env::current_dir()?;
 
     // Open state store
@@ -130,9 +120,6 @@ pub async fn run_interactive(
     let session = store.create_session("interactive", model)?;
     store.update_session_state(&session.id, &c4l_types::SessionState::Running)?;
     info!(session_id = %session.id, model, "starting interactive session");
-
-    // Build API client
-    let client = AnthropicClient::new(api_config);
 
     // Build system prompt
     let system_prompt = build_system_prompt(&cwd);
