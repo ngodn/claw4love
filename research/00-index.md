@@ -45,6 +45,11 @@ Complete OAuth 2.0 PKCE flow for Claude subscription login (Pro/Max/Team/Enterpr
 Client ID, endpoints, scopes, token storage, refresh logic, auth priority order.
 Verified from leak-claude-code/src/services/oauth/ and src/utils/auth.ts.
 
+### [07 - crush](07-crush.md)
+Go-based AI coding assistant by Charmbracelet. Provider-agnostic architecture.
+Explicitly dropped Claude Code subscription OAuth support — only direct API keys for Anthropic.
+Uses Hyper proxy as bridge. Anthropic auth: plain x-api-key or Bearer token.
+
 ## Key Observations for Rust Rewrite
 
 ### From rtk (existing Rust proxy):
