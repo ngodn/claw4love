@@ -19,6 +19,7 @@ claw4love targets: under 10MB binary, under 50ms startup, under 30MB memory, wit
 ### Prerequisites
 
 - Rust toolchain (rustup.rs)
+- Claude Code CLI installed and logged in (`claude login`)
 - ripgrep (`rg`) for the Grep tool
 - git
 
@@ -40,19 +41,35 @@ The binary will be at `target/release/claw4love`.
 
 ### Authenticate
 
-Option 1: Log in with your Claude subscription (Pro/Max/Team/Enterprise):
+claw4love uses your existing Claude Code CLI login. If you're already logged in with `claude login`, you're ready to go.
+
+For subscription users (Pro/Max/Team/Enterprise), claw4love bootstraps a real session through the official Claude Code CLI via a transparent proxy. This captures the exact headers, session ID, and credentials that the API expects. No reverse engineering, no hardcoded headers -- always up to date with whatever Anthropic requires.
 
 ```
-cargo run -p c4l-cli -- login
+# Check if you're already authenticated
+claw4love doctor
+
+# If you need to log in (uses same credentials as Claude Code CLI)
+claw4love login
 ```
 
-This opens a browser for OAuth authentication. Tokens are stored in `~/.claude/.credentials.json` (same location as the official CLI).
-
-Option 2: Use an API key:
+For API key users:
 
 ```
 export ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
+
+### How Session Bootstrap Works
+
+When using a Claude subscription (not API key), claw4love:
+
+1. Starts a transparent TCP proxy on a random local port
+2. Spawns `claude --print -p "init"` with the proxy as its API endpoint
+3. The proxy forwards everything to api.anthropic.com and captures the request
+4. Claude Code creates a real session with all the right headers, betas, metadata
+5. claw4love takes over that session with the exact same credentials
+
+This approach works because Anthropic's subscription API requires specific headers (`claude-code-20250219` beta, `metadata.user_id`, Stainless SDK headers, etc.) that are tightly coupled to the official CLI. Other tools like Crush (Charmbracelet) tried to support Claude subscription auth directly but dropped it because of this coupling. The bootstrap approach sidesteps the problem entirely.
 
 ### Run
 
@@ -113,7 +130,7 @@ claw4love version             # Show version info
 cargo test --workspace
 ```
 
-Currently 164 tests across all crates.
+Currently 165 tests across all crates.
 
 ### Configuration
 
@@ -156,14 +173,14 @@ CLAUDE_CONFIG_DIR          # Override config directory (default: ~/.claude)
 
 ## Status
 
-All 8 phases scaffolded. 13 crates, 164 tests passing.
+13 crates, 165 tests passing.
 
 | Crate | Status | Purpose |
 |-------|--------|---------|
 | c4l-types | Done | Messages, permissions, tools, commands, sessions |
 | c4l-config | Done | Layered config loading (TOML + env vars + defaults) |
 | c4l-cli | Done | Binary with login, doctor, sessions, REPL, oneshot |
-| c4l-api | Done | Anthropic API client with SSE streaming, retry, OAuth |
+| c4l-api | Done | Anthropic API client with SSE streaming, retry, session bootstrap |
 | c4l-engine | Done | Query engine with tool-call loop and event streaming |
 | c4l-tools | Done | Tool trait, registry, and 6 essential tools |
 | c4l-state | Done | SQLite session store, cost tracking, shared app state |
@@ -180,21 +197,19 @@ Bash, Read (FileRead), Edit (FileEdit), Write (FileWrite), Glob, Grep
 
 ### Authentication
 
-- OAuth login with Claude Pro/Max/Team/Enterprise subscriptions (`claw4love login`)
-- API key via environment variable or config file
-- Tokens stored in `~/.claude/.credentials.json` (compatible with official CLI)
-- Auto-refresh before expiry
+- Session bootstrap via Claude Code CLI (subscription users)
+- Direct API key via environment variable or config file
+- Reads existing credentials from `~/.claude/.credentials.json`
+- Auto-refresh before token expiry
 
 ## Architecture
-
-The project is a Cargo workspace split by concern. Each crate has a single responsibility and communicates through the shared types in c4l-types.
 
 ```
 User input
   -> c4l-cli (parse args, launch REPL or oneshot)
-    -> c4l-engine (build prompt, stream API, detect tool_use)
-      -> c4l-api (HTTP streaming to Anthropic, OAuth or API key)
-      -> c4l-tools (execute tools: Bash, FileRead, FileEdit, ...)
+    -> c4l-api (session bootstrap via Claude Code CLI proxy)
+      -> c4l-engine (build prompt, stream API, detect tool_use)
+        -> c4l-tools (execute tools: Bash, FileRead, FileEdit, ...)
         -> c4l-state (persist session, track cost in SQLite)
     -> c4l-tui (render messages, handle input, permission prompts)
     -> c4l-plugins (load skills, fire hooks, read CLAUDE.md)
@@ -216,13 +231,14 @@ claw4love/
 
 ## Research
 
-The `research/` directory contains component-by-component analysis of:
+The `research/` directory contains analysis of:
 
 - The original Claude Code CLI TypeScript source (512K LOC)
 - Existing Python and Rust porting attempts
 - The RTK token optimization proxy (19K LOC Rust)
 - The Everything Claude Code and Superpowers plugin ecosystems
 - OAuth authentication flow (endpoints, scopes, token storage)
+- Crush (Charmbracelet) -- how they handle auth (dropped OAuth, API keys only)
 
 All type definitions and architectural decisions are grounded in these findings.
 
