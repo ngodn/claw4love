@@ -286,16 +286,70 @@ pub async fn refresh_token(
     })
 }
 
+// -- Device ID & Account UUID --
+
+/// Get the device ID from ~/.claude/config.json (shared with Claude Code CLI).
+/// If not found, generates a new one.
+///
+/// Source: leak-claude-code/src/utils/config.ts getOrCreateUserID()
+/// Format: 32 random bytes as hex string (64 chars)
+pub fn get_device_id() -> String {
+    let config_dir = claude_config_dir();
+    let config_path = config_dir.join("config.json");
+
+    if let Ok(content) = std::fs::read_to_string(&config_path) {
+        if let Ok(config) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(id) = config.get("userID").and_then(|v| v.as_str()) {
+                return id.to_string();
+            }
+        }
+    }
+
+    // Generate new device ID (same format as Claude Code: 32 random bytes hex)
+    let id = uuid::Uuid::new_v4().to_string().replace('-', "")
+        + &uuid::Uuid::new_v4().to_string().replace('-', "");
+    id
+}
+
+/// Get the account UUID from stored credentials.
+///
+/// Source: leak-claude-code/src/services/api/claude.ts getOauthAccountInfo()
+pub fn get_account_uuid() -> String {
+    let path = credentials_path();
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
+            // Check various locations where the UUID might be stored
+            for key in ["accountUuid", "organizationUuid", "account_uuid"] {
+                if let Some(uuid) = value.get(key).and_then(|v| v.as_str()) {
+                    return uuid.to_string();
+                }
+            }
+            // Check inside claudeAiOauth
+            if let Some(oauth) = value.get("claudeAiOauth") {
+                for key in ["accountUuid", "organizationUuid", "account_uuid"] {
+                    if let Some(uuid) = oauth.get(key).and_then(|v| v.as_str()) {
+                        return uuid.to_string();
+                    }
+                }
+            }
+        }
+    }
+    String::new()
+}
+
+/// Claude config directory (shared with Claude Code CLI).
+fn claude_config_dir() -> PathBuf {
+    std::env::var("CLAUDE_CONFIG_DIR")
+        .map(PathBuf::from)
+        .or_else(|_| dirs::home_dir().map(|h| h.join(".claude")).ok_or(()))
+        .unwrap_or_else(|_| PathBuf::from(".claude"))
+}
+
 // -- Credential storage --
 
 /// Default credentials file path.
 pub fn credentials_path() -> PathBuf {
-    let config_dir = std::env::var("CLAUDE_CONFIG_DIR")
-        .map(PathBuf::from)
-        .or_else(|_| dirs::home_dir().map(|h| h.join(".claude")).ok_or(()))
-        .unwrap_or_else(|_| PathBuf::from(".claude"));
-
-    config_dir.join(".credentials.json")
+    claude_config_dir().join(".credentials.json")
 }
 
 /// Load stored OAuth credentials from disk.

@@ -90,10 +90,16 @@ impl AnthropicClient {
             stream: if stream { Some(true) } else { None },
             metadata: match &self.config.auth {
                 crate::types::ApiAuth::OAuth(_) => {
-                    // OAuth requires metadata.user_id with device_id and session_id
+                    // OAuth requires metadata.user_id with device_id, account_uuid, session_id
+                    // device_id: from ~/.claude/config.json userID (shared with Claude Code CLI)
+                    // account_uuid: from OAuth credentials
+                    // session_id: random UUID per session
+                    let device_id = crate::oauth::get_device_id();
+                    let account_uuid = crate::oauth::get_account_uuid();
                     Some(serde_json::json!({
                         "user_id": serde_json::json!({
-                            "device_id": "claw4love",
+                            "device_id": device_id,
+                            "account_uuid": account_uuid,
                             "session_id": uuid::Uuid::new_v4().to_string(),
                         }).to_string()
                     }))
