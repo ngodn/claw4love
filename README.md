@@ -15,6 +15,19 @@ We confirmed this by:
 
 The API appears to validate requests at the transport level (TLS fingerprinting, HTTP/2 behavior, or similar) beyond just headers and body content.
 
+## Why This Matters
+
+The Rust codebase itself works. The architecture is sound, the types match the original TypeScript, the tool system executes properly, the TUI renders. If you have a pay-per-token Anthropic API key (`ANTHROPIC_API_KEY`), this would work as a standalone CLI. The problem is specifically with subscription-based authentication (Pro/Max/Team/Enterprise plans), which is what most Claude Code users actually have.
+
+This is not a problem unique to this project. Every third-party project that has tried to use Claude subscription tokens directly has either been blocked or given up:
+
+- **Crush/opencode** (Charmbracelet) removed Claude Code OAuth support entirely, now only accepts direct API keys for Anthropic
+- **CLIProxyAPI** solves the problem by wrapping the official `claude --print` CLI as a backend, meaning it still depends entirely on the official Claude Code binary being installed and logged in
+- **claude-code-proxy** and its many forks all take the same wrapper approach, piping requests through the real CLI
+- **Anthropic's Agent SDK** explicitly requires API key authentication and does not support OAuth tokens from subscription accounts
+
+In other words, there is no known way to use a Claude subscription token to make API calls without going through the official Claude Code CLI. The subscription is tied to the client, not just the token.
+
 ## The Right Approach
 
 The projects that actually succeed at improving Claude Code don't replace it. They extend it.
@@ -25,7 +38,9 @@ The projects that actually succeed at improving Claude Code don't replace it. Th
 
 **Everything Claude Code (ECC)** provides agents, commands, rules, and workflow automation through Claude Code's native plugin/skill/hook/command system. 30 agents, 136 skills, 60 commands. It works because it plugs into existing extension points.
 
-The lesson is simple: Claude Code's value is not in the CLI binary. It's in the API access, the model, and the tool-call loop. The CLI is just the delivery mechanism, and Anthropic controls it. The right way to improve Claude Code is to build on top of it, not replace it.
+**CLIProxyAPI** wraps `claude --print --output-format stream-json` as an OpenAI-compatible API endpoint so other tools (Cursor, Cline, Factory) can use your Max subscription. It works, but it still requires the official Claude Code CLI installed and authenticated underneath.
+
+The lesson is simple: Claude Code's value is not in the CLI binary. It's in the API access, the model, and the tool-call loop. The CLI is just the delivery mechanism, and Anthropic controls it. You can build better workflows, better token efficiency, better UI on top of it, but you cannot replace the client itself if you want to use a subscription plan.
 
 ## What's Here
 
